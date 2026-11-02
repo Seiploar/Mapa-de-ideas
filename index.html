@@ -1,0 +1,1209 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detective Board - Studio & Canvas Infinito</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=Permanent+Marker&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            user-select: none;
+            overflow: hidden;
+        }
+        .font-typewriter { font-family: 'Courier Prime', monospace; }
+        .font-handwriting { font-family: 'Permanent Marker', cursive; }
+
+        /* Canvas Viewport Infinita */
+        #viewport {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            overflow: hidden;
+            background-color: #0f172a;
+        }
+
+        #canvasWorld {
+            position: absolute;
+            width: 6000px;
+            height: 4000px;
+            top: 0;
+            left: 0;
+            transform-origin: 0 0;
+            transition: transform 0.05s linear;
+        }
+
+        /* Preset Background Patterns */
+        .bg-cork {
+            background-color: #cb9b51;
+            background-image: 
+                radial-gradient(rgba(0, 0, 0, 0.18) 15%, transparent 16%),
+                radial-gradient(rgba(255, 255, 255, 0.15) 15%, transparent 16%),
+                radial-gradient(rgba(0, 0, 0, 0.12) 15%, transparent 20%),
+                radial-gradient(rgba(255, 255, 255, 0.1) 15%, transparent 20%);
+            background-position: 0 0, 4px 4px, 8px 8px, 12px 12px;
+            background-size: 16px 16px;
+        }
+        .bg-wood {
+            background: #2b1810 radial-gradient(circle, #3d2317 0%, #1a0d08 100%);
+            background-size: cover;
+        }
+        .bg-brick {
+            background-color: #3b1d1d;
+            background-image: radial-gradient(#612a2a 2px, transparent 2px);
+            background-size: 16px 16px;
+        }
+        .bg-blueprint {
+            background-color: #0f2b48;
+            background-image: linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        .bg-chalkboard {
+            background-color: #1e2922;
+            background-image: radial-gradient(rgba(255,255,255,0.05) 1px, transparent 0);
+            background-size: 24px 24px;
+        }
+        .bg-whiteboard {
+            background-color: #f8fafc;
+            background-image: linear-gradient(#e2e8f0 1px, transparent 1px), linear-gradient(90deg, #e2e8f0 1px, transparent 1px);
+            background-size: 25px 25px;
+        }
+        .bg-custom-user {
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
+        /* Estilos de Tarjetas */
+        .note-paper { background: #fbf8eb; color: #1f2937; box-shadow: 4px 8px 20px rgba(0,0,0,0.35); }
+        .note-yellow { background: #fef08a; color: #713f12; box-shadow: 4px 8px 20px rgba(0,0,0,0.35); }
+        .note-photo { background: #ffffff; padding: 10px 10px 24px 10px; box-shadow: 6px 10px 25px rgba(0,0,0,0.45); }
+        .note-newspaper { background: #e5e0d8; border: 1px solid #c5bea8; box-shadow: 4px 8px 20px rgba(0,0,0,0.35); }
+        .note-board-link { background: linear-gradient(135deg, #0f172a, #1e293b); color: #f8fafc; border: 2px solid #38bdf8; box-shadow: 0 10px 30px rgba(56, 189, 248, 0.3); }
+
+        /* Pushpins */
+        .pushpin {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            position: absolute;
+            top: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.6), inset -2px -2px 4px rgba(0,0,0,0.4), inset 2px 2px 4px rgba(255,255,255,0.7);
+            z-index: 25;
+            cursor: pointer;
+            transition: transform 0.15s ease;
+        }
+        .pushpin:hover { transform: translateX(-50%) scale(1.3); }
+        .pushpin-red { background: #dc2626; }
+        .pushpin-yellow { background: #eab308; }
+        .pushpin-blue { background: #0284c7; }
+        .pushpin-green { background: #16a34a; }
+        .pushpin-gold { background: linear-gradient(135deg, #f59e0b, #fbbf24); border: 1px solid #fef08a; }
+
+        .note-card { touch-action: none; position: absolute; }
+        .note-card:hover { z-index: 35 !important; }
+        .note-card.connecting { outline: 3px dashed #ef4444; animation: pulse 1s infinite; }
+
+        /* Custom Scrollbar Sidebar */
+        .sidebar-scroll::-webkit-scrollbar { width: 4px; }
+        .sidebar-scroll::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
+        .sidebar-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
+    </style>
+</head>
+<body class="h-full bg-slate-950 text-slate-100 flex flex-col">
+
+    <!-- TOP CONTROL BAR -->
+    <header class="fixed top-0 left-0 right-0 h-14 bg-slate-900/90 backdrop-blur-md border-b border-slate-800/80 px-4 z-40 flex items-center justify-between shadow-lg">
+        
+        <!-- Left: Sidebar Toggle & Board Title -->
+        <div class="flex items-center space-x-3">
+            <button onclick="toggleSidebar()" class="p-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl transition-all flex items-center space-x-2 border border-slate-700">
+                <i class="fa-solid fa-bars text-lg"></i>
+                <span class="text-xs font-bold hidden sm:inline">Menú Didáctico</span>
+            </button>
+            <div class="h-6 w-px bg-slate-800"></div>
+            <div class="flex items-center space-x-2">
+                <i class="fa-solid fa-folder-open text-red-500"></i>
+                <span id="headerBoardTitle" class="font-bold text-sm text-slate-100">Cargando pizarra...</span>
+            </div>
+        </div>
+
+        <!-- Center: Pan Tool, Zoom Controls & Recenter Button -->
+        <div class="flex items-center space-x-2 bg-slate-950/80 p-1 rounded-xl border border-slate-800">
+            <button id="panToolBtn" onclick="togglePanTool()" class="p-2 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition-colors bg-slate-800 text-slate-300 hover:bg-slate-700" title="Herramienta de Arrastre de Lienzo (Mano)">
+                <i class="fa-solid fa-hand"></i>
+                <span class="hidden md:inline text-[11px]">Mover Vista</span>
+            </button>
+            <div class="h-4 w-px bg-slate-800"></div>
+            <button onclick="adjustZoom(-0.1)" class="p-1.5 hover:bg-slate-800 rounded-lg text-xs text-slate-300" title="Alejar (-)"><i class="fa-solid fa-minus"></i></button>
+            <span id="zoomText" class="text-xs font-mono font-bold w-12 text-center text-slate-300">100%</span>
+            <button onclick="adjustZoom(0.1)" class="p-1.5 hover:bg-slate-800 rounded-lg text-xs text-slate-300" title="Acercar (+)"><i class="fa-solid fa-plus"></i></button>
+            
+            <!-- ALWAYS VISIBLE RECENTER BUTTON -->
+            <button onclick="recenterBoard()" class="ml-1 px-3 py-1.5 bg-red-700/90 hover:bg-red-600 text-white font-bold text-xs rounded-lg flex items-center space-x-1.5 shadow transition-all" title="Centrar todo el contenido en pantalla">
+                <i class="fa-solid fa-crosshairs"></i>
+                <span>Recentrar</span>
+            </button>
+        </div>
+
+        <!-- Right: Quick Connect & Add Item -->
+        <div class="flex items-center space-x-2">
+            <button id="connectBtn" onclick="toggleConnectMode()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition-all">
+                <i class="fa-solid fa-route text-red-500"></i>
+                <span id="connectBtnText">Conectar Hilo</span>
+            </button>
+            <button onclick="openModal()" class="px-3.5 py-1.5 bg-red-700 hover:bg-red-600 text-white rounded-xl text-xs font-bold flex items-center space-x-1.5 shadow-lg active:scale-95 transition-all">
+                <i class="fa-solid fa-plus"></i>
+                <span class="hidden sm:inline">Nueva Idea</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- DIDACTIC SIDEBAR MENU -->
+    <aside id="sidebar" class="fixed top-14 left-0 bottom-0 w-80 bg-slate-900/95 backdrop-blur-xl border-r border-slate-800 z-30 transition-transform duration-300 transform -translate-x-full flex flex-col shadow-2xl">
+        
+        <!-- Sidebar Navigation Tabs -->
+        <div class="grid grid-cols-4 border-b border-slate-800 bg-slate-950/60 text-slate-400 text-xs font-bold">
+            <button onclick="switchTab('boards')" id="tab-boards" class="py-3 hover:text-slate-200 border-b-2 border-red-600 text-red-500 flex flex-col items-center gap-1">
+                <i class="fa-solid fa-cubes text-base"></i>
+                <span class="text-[10px]">Pizarras</span>
+            </button>
+            <button onclick="switchTab('add')" id="tab-add" class="py-3 hover:text-slate-200 border-b-2 border-transparent flex flex-col items-center gap-1">
+                <i class="fa-solid fa-shapes text-base"></i>
+                <span class="text-[10px]">Añadir</span>
+            </button>
+            <button onclick="switchTab('style')" id="tab-style" class="py-3 hover:text-slate-200 border-b-2 border-transparent flex flex-col items-center gap-1">
+                <i class="fa-solid fa-paint-roller text-base"></i>
+                <span class="text-[10px]">Fondos</span>
+            </button>
+            <button onclick="switchTab('threads')" id="tab-threads" class="py-3 hover:text-slate-200 border-b-2 border-transparent flex flex-col items-center gap-1">
+                <i class="fa-solid fa-route text-base"></i>
+                <span class="text-[10px]">Hilos</span>
+            </button>
+        </div>
+
+        <!-- Sidebar Body Panels -->
+        <div class="flex-1 overflow-y-auto sidebar-scroll p-4 space-y-6">
+
+            <!-- TAB 1: BOARDS MANAGEMENT -->
+            <div id="panel-boards" class="space-y-4">
+                <div class="flex items-center justify-between">
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400">Tus Pizarras de Caso</h4>
+                    <button onclick="openBoardModal()" class="text-xs bg-red-700 hover:bg-red-600 text-white font-bold px-2.5 py-1 rounded-lg">
+                        <i class="fa-solid fa-plus mr-1"></i> Nueva
+                    </button>
+                </div>
+                
+                <div id="boardsList" class="space-y-2">
+                    <!-- Dynamic List of Boards -->
+                </div>
+            </div>
+
+            <!-- TAB 2: ADD ELEMENTS (QUICK CREATOR) -->
+            <div id="panel-add" class="hidden space-y-4">
+                <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Herramientas Rápidas</h4>
+                
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                    <button onclick="quickAdd('note')" class="p-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-left flex flex-col items-start gap-1">
+                        <i class="fa-solid fa-sticky-note text-yellow-400 text-lg"></i>
+                        <span class="font-bold">Post-it de Texto</span>
+                        <span class="text-[10px] text-slate-400">Nota simple o papel</span>
+                    </button>
+                    <button onclick="quickAdd('photo')" class="p-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-left flex flex-col items-start gap-1">
+                        <i class="fa-solid fa-image text-emerald-400 text-lg"></i>
+                        <span class="font-bold">Fotografía</span>
+                        <span class="text-[10px] text-slate-400">Polaroid con imagen</span>
+                    </button>
+                    <button onclick="quickAdd('file')" class="p-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-left flex flex-col items-start gap-1">
+                        <i class="fa-solid fa-file-pdf text-red-400 text-lg"></i>
+                        <span class="font-bold">Archivo PC</span>
+                        <span class="text-[10px] text-slate-400">PDF, TXT o Documento</span>
+                    </button>
+                    <button onclick="quickAdd('video')" class="p-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-left flex flex-col items-start gap-1">
+                        <i class="fa-solid fa-video text-purple-400 text-lg"></i>
+                        <span class="font-bold">Video</span>
+                        <span class="text-[10px] text-slate-400">MP4 o YouTube</span>
+                    </button>
+                </div>
+
+                <div class="pt-2">
+                    <button onclick="quickAdd('board-link')" class="w-full p-3 bg-sky-950/60 hover:bg-sky-900/60 border border-sky-600/50 rounded-xl text-sky-200 text-xs font-bold flex items-center justify-between">
+                        <span class="flex items-center gap-2">
+                            <i class="fa-solid fa-link text-sky-400"></i>
+                            <span>Conectar con Otra Pizarra</span>
+                        </span>
+                        <i class="fa-solid fa-chevron-right text-sky-400"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- TAB 3: BACKGROUND STYLES & CUSTOM IMAGE -->
+            <div id="panel-style" class="hidden space-y-4">
+                <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400">Fondo de la Pizarra</h4>
+                
+                <!-- Preset Options -->
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                    <button onclick="setBoardBg('bg-cork')" class="p-2.5 bg-amber-900/40 border border-amber-800/60 hover:border-amber-600 rounded-xl flex items-center gap-2">
+                        <div class="w-5 h-5 rounded bg-amber-700"></div>
+                        <span class="font-bold">Corcho Clásico</span>
+                    </button>
+                    <button onclick="setBoardBg('bg-wood')" class="p-2.5 bg-amber-950 border border-amber-900 hover:border-amber-700 rounded-xl flex items-center gap-2">
+                        <div class="w-5 h-5 rounded bg-amber-950"></div>
+                        <span class="font-bold">Madera Oscura</span>
+                    </button>
+                    <button onclick="setBoardBg('bg-brick')" class="p-2.5 bg-red-950 border border-red-900 hover:border-red-700 rounded-xl flex items-center gap-2">
+                        <div class="w-5 h-5 rounded bg-red-900"></div>
+                        <span class="font-bold">Pared Ladrillo</span>
+                    </button>
+                    <button onclick="setBoardBg('bg-blueprint')" class="p-2.5 bg-sky-950 border border-sky-900 hover:border-sky-700 rounded-xl flex items-center gap-2">
+                        <div class="w-5 h-5 rounded bg-sky-900"></div>
+                        <span class="font-bold">Plano / Blueprint</span>
+                    </button>
+                    <button onclick="setBoardBg('bg-chalkboard')" class="p-2.5 bg-emerald-950 border border-emerald-900 hover:border-emerald-700 rounded-xl flex items-center gap-2">
+                        <div class="w-5 h-5 rounded bg-emerald-900"></div>
+                        <span class="font-bold">Pizarra Verde</span>
+                    </button>
+                    <button onclick="setBoardBg('bg-whiteboard')" class="p-2.5 bg-slate-800 border border-slate-700 hover:border-slate-500 rounded-xl flex items-center gap-2">
+                        <div class="w-5 h-5 rounded bg-slate-100 border"></div>
+                        <span class="font-bold">Pizarra Blanca</span>
+                    </button>
+                </div>
+
+                <!-- Custom Image Upload Section -->
+                <div class="pt-4 border-t border-slate-800 space-y-2">
+                    <h5 class="text-xs font-bold text-slate-300">Subir tu Fondo Personalizado</h5>
+                    <input type="file" id="bgFileInput" accept="image/*" onchange="uploadCustomBg(event)" class="w-full text-xs text-slate-400 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-slate-800 file:text-slate-200 hover:file:bg-slate-700">
+                    <div class="text-center text-[11px] text-slate-500 font-bold">- ó Enlace Web -</div>
+                    <div class="flex gap-2">
+                        <input type="url" id="bgUrlInput" placeholder="https://..." class="flex-1 px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-200">
+                        <button onclick="setCustomBgUrl()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-bold rounded-lg">Aplicar</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 4: THREADS & BACKUP -->
+            <div id="panel-threads" class="hidden space-y-4">
+                <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400">Configuración de Hilos</h4>
+                
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Color Predeterminado del Hilo</label>
+                    <select id="sidebarThreadColor" class="w-full bg-slate-950 border border-slate-800 rounded-lg text-xs p-2 text-slate-200">
+                        <option value="#dc2626">Rojo Detective</option>
+                        <option value="#eab308">Amarillo Advertencia</option>
+                        <option value="#0284c7">Azul Táctico</option>
+                        <option value="#16a34a">Verde Operación</option>
+                        <option value="#f8fafc">Blanco Puro</option>
+                    </select>
+                </div>
+
+                <div class="pt-4 border-t border-slate-800 space-y-2">
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400">Resguardo de Datos</h4>
+                    <button onclick="exportData()" class="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-download"></i> Exportar Estudio (.json)
+                    </button>
+                    <label class="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl flex items-center justify-center gap-2 cursor-pointer">
+                        <i class="fa-solid fa-upload"></i> Importar Estudio
+                        <input type="file" accept=".json" onchange="importData(event)" class="hidden">
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar Footer -->
+        <div class="p-3 border-t border-slate-800 bg-slate-950/90 text-center">
+            <p class="text-[10px] text-slate-500 font-semibold">Detective Board Studio • Lienzo Infinito</p>
+        </div>
+    </aside>
+
+    <!-- MAIN VIEWPORT CANVAS & INFINITE WORLD -->
+    <main id="viewport" class="flex-1 cursor-grab">
+        
+        <!-- Canvas World Infinite Container -->
+        <div id="canvasWorld" class="bg-cork">
+            <!-- Connecting Strings Canvas -->
+            <canvas id="stringCanvas" class="absolute inset-0 pointer-events-none z-10"></canvas>
+            
+            <!-- Thread Labels Layer -->
+            <div id="labelsContainer" class="absolute inset-0 pointer-events-none z-15"></div>
+
+            <!-- Notes & Cards Layer -->
+            <div id="notesContainer" class="absolute inset-0 z-20"></div>
+        </div>
+
+    </main>
+
+    <!-- CREATE/EDIT MODAL -->
+    <div id="ideaModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden text-slate-100 flex flex-col max-h-[90vh]">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-800">
+                <h3 id="modalTitle" class="font-bold text-base">Nueva Evidencia / Idea</h3>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-slate-200"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            
+            <form onsubmit="saveIdea(event)" class="p-6 space-y-4 overflow-y-auto flex-1">
+                <input type="hidden" id="ideaId">
+
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Tipo de Elemento</label>
+                    <select id="ideaType" onchange="toggleFormFields(this.value)" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 text-xs font-semibold focus:ring-2 focus:ring-red-600">
+                        <option value="note">Nota / Post-it de texto</option>
+                        <option value="photo">Foto / Imagen (Local o URL)</option>
+                        <option value="file">Archivo de la PC (PDF, TXT, etc.)</option>
+                        <option value="video">Video (Local MP4 o YouTube)</option>
+                        <option value="board-link">Puente / Enlace a otra Pizarra</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Título</label>
+                    <input type="text" id="ideaTitle" required placeholder="Ej: Sospechoso / Documento adjunto..." 
+                        class="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 text-xs focus:ring-2 focus:ring-red-600">
+                </div>
+
+                <div id="descFieldGroup">
+                    <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Descripción / Anotaciones</label>
+                    <textarea id="ideaDesc" rows="3" placeholder="Detalles, apuntes clave..." 
+                        class="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 text-xs focus:ring-2 focus:ring-red-600 resize-none"></textarea>
+                </div>
+
+                <div id="styleFieldGroup">
+                    <label class="block text-xs font-bold uppercase text-slate-400 mb-2">Estilo Visual</label>
+                    <div class="grid grid-cols-2 gap-2 text-xs">
+                        <label class="flex items-center space-x-2 p-2 rounded-lg bg-slate-950 border border-slate-800 cursor-pointer">
+                            <input type="radio" name="style" value="note-paper" checked class="text-red-600">
+                            <span>Papel Normal</span>
+                        </label>
+                        <label class="flex items-center space-x-2 p-2 rounded-lg bg-slate-950 border border-slate-800 cursor-pointer">
+                            <input type="radio" name="style" value="note-yellow" class="text-red-600">
+                            <span>Post-it Amarillo</span>
+                        </label>
+                        <label class="flex items-center space-x-2 p-2 rounded-lg bg-slate-950 border border-slate-800 cursor-pointer">
+                            <input type="radio" name="style" value="note-newspaper" class="text-red-600">
+                            <span>Recorte Periódico</span>
+                        </label>
+                        <label class="flex items-center space-x-2 p-2 rounded-lg bg-slate-950 border border-slate-800 cursor-pointer">
+                            <input type="radio" name="style" value="note-photo" class="text-red-600">
+                            <span>Polaroid Foto</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div id="targetBoardGroup" class="hidden">
+                    <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Pizarra de Destino</label>
+                    <select id="targetBoardId" class="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 text-xs">
+                    </select>
+                </div>
+
+                <div id="imageInputsGroup" class="hidden space-y-2">
+                    <label class="block text-xs font-bold uppercase text-slate-400">Cargar Imagen</label>
+                    <input type="file" id="localImageInput" accept="image/*" class="w-full text-xs text-slate-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:bg-slate-800 file:text-slate-100 hover:file:bg-slate-700" onchange="handleLocalImage(event)">
+                    <div class="text-center text-[10px] text-slate-500 font-bold">- Ó por URL -</div>
+                    <input type="url" id="ideaImage" placeholder="https://..." class="w-full px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 text-xs">
+                </div>
+
+                <div id="videoInputsGroup" class="hidden space-y-2">
+                    <label class="block text-xs font-bold uppercase text-slate-400">Video Local o YouTube</label>
+                    <input type="file" id="localVideoInput" accept="video/*" class="w-full text-xs text-slate-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:bg-slate-800 file:text-slate-100 hover:file:bg-slate-700" onchange="handleLocalVideo(event)">
+                    <div class="text-center text-[10px] text-slate-500 font-bold">- Ó Enlace de YouTube -</div>
+                    <input type="url" id="youtubeUrl" placeholder="https://www.youtube.com/watch?v=..." class="w-full px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 text-xs">
+                </div>
+
+                <div id="fileInputsGroup" class="hidden space-y-2">
+                    <label class="block text-xs font-bold uppercase text-slate-400">Archivo Local de PC</label>
+                    <input type="file" id="localFileInput" class="w-full text-xs text-slate-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:bg-slate-800 file:text-slate-100 hover:file:bg-slate-700" onchange="handleLocalFile(event)">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-400 mb-2">Color de Chinche</label>
+                    <div class="flex items-center space-x-4">
+                        <label class="cursor-pointer">
+                            <input type="radio" name="pin" value="pushpin-red" checked class="sr-only peer">
+                            <div class="w-6 h-6 rounded-full bg-red-600 peer-checked:ring-2 peer-checked:ring-white"></div>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="pin" value="pushpin-yellow" class="sr-only peer">
+                            <div class="w-6 h-6 rounded-full bg-yellow-500 peer-checked:ring-2 peer-checked:ring-white"></div>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="pin" value="pushpin-blue" class="sr-only peer">
+                            <div class="w-6 h-6 rounded-full bg-sky-500 peer-checked:ring-2 peer-checked:ring-white"></div>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="pin" value="pushpin-green" class="sr-only peer">
+                            <div class="w-6 h-6 rounded-full bg-emerald-600 peer-checked:ring-2 peer-checked:ring-white"></div>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="pin" value="pushpin-gold" class="sr-only peer">
+                            <div class="w-6 h-6 rounded-full bg-amber-400 peer-checked:ring-2 peer-checked:ring-white"></div>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-end space-x-3 pt-3 border-t border-slate-800">
+                    <button type="button" onclick="closeModal()" class="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-slate-200">Cancelar</button>
+                    <button type="submit" class="px-5 py-2 text-xs font-bold bg-red-700 hover:bg-red-600 text-white rounded-xl shadow-md">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- CREATE BOARD MODAL -->
+    <div id="boardModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl w-full max-w-sm p-6 text-slate-100 space-y-4">
+            <h3 id="boardModalTitle" class="font-bold text-base">Nueva Pizarra</h3>
+            <div>
+                <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Nombre de la Pizarra</label>
+                <input type="text" id="boardNameInput" placeholder="Ej: Red de Contactos / Cronología" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 text-xs">
+            </div>
+            <div class="flex items-center justify-end space-x-3 pt-2">
+                <button onclick="closeBoardModal()" class="px-4 py-2 text-xs text-slate-400">Cancelar</button>
+                <button onclick="saveBoard()" class="px-5 py-2 text-xs font-bold bg-red-700 hover:bg-red-600 text-white rounded-xl shadow-md">Guardar Pizarra</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- APPLICATION LOGIC -->
+    <script>
+        // Data Store
+        let store = {
+            activeBoardId: 'board-1',
+            boards: [
+                { id: 'board-1', name: 'Investigación Caso Principal', bgStyle: 'bg-cork' },
+                { id: 'board-2', name: 'Red de Sospechosos', bgStyle: 'bg-wood' }
+            ],
+            ideas: [],
+            connections: []
+        };
+
+        // Viewport Dragging (Pan) & Zoom state
+        let panX = -2100;
+        let panY = -1400;
+        let zoomLevel = 1.0;
+        let isPanning = false;
+        let startPanX = 0;
+        let startPanY = 0;
+        let isPanToolActive = false;
+
+        // Interactive States
+        let isConnectMode = false;
+        let connectSourceId = null;
+        let draggedIdea = null;
+        let dragOffsetX = 0;
+        let dragOffsetY = 0;
+
+        // Temporary Base64 File Storage
+        let tempMediaBase64 = null;
+        let tempFileName = null;
+        let tempFileSize = null;
+
+        const defaultIdeas = [
+            { id: '1', boardId: 'board-1', type: 'photo', title: 'Sospechoso Alpha', desc: 'Visto cerca de la escena a las 23:15 PM.', style: 'note-photo', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=300&q=80', pin: 'pushpin-red', x: 2800, y: 1800, rotation: -2 },
+            { id: '2', boardId: 'board-1', type: 'note', title: 'Reporte de ADN #402', desc: 'Muestra positiva encontrada en el perímetro exterior.', style: 'note-paper', pin: 'pushpin-yellow', x: 3150, y: 1820, rotation: 3 },
+            { id: '3', boardId: 'board-1', type: 'board-link', title: 'Ver Red de Sospechosos', desc: 'Pizarra secundaria de conexiones.', targetBoardId: 'board-2', style: 'note-board-link', pin: 'pushpin-gold', x: 2980, y: 2150, rotation: 0 }
+        ];
+
+        const defaultConnections = [
+            { id: 'c1', boardId: 'board-1', fromId: '1', toId: '2', color: '#dc2626', label: 'Prueba de enlace' },
+            { id: 'c2', boardId: 'board-1', fromId: '1', toId: '3', color: '#0284c7', label: 'Ver detalles' }
+        ];
+
+        window.onload = () => {
+            loadStorage();
+            initCanvas();
+            setupViewportPanning();
+            renderSidebarBoards();
+            renderBoard();
+            recenterBoard();
+        };
+
+        // Storage Management
+        function loadStorage() {
+            const saved = localStorage.getItem('detective_canvas_store');
+            if (saved) {
+                try {
+                    store = JSON.parse(saved);
+                } catch(e) { setupDefaults(); }
+            } else {
+                setupDefaults();
+            }
+        }
+
+        function setupDefaults() {
+            store.ideas = defaultIdeas;
+            store.connections = defaultConnections;
+            saveStorage();
+        }
+
+        function saveStorage() {
+            localStorage.setItem('detective_canvas_store', JSON.stringify(store));
+        }
+
+        // Viewport Transform & Smooth Panning
+        function updateTransform() {
+            const world = document.getElementById('canvasWorld');
+            world.style.transform = `translate(${panX}px, ${panY}px) scale(${zoomLevel})`;
+            drawConnections();
+        }
+
+        function setupViewportPanning() {
+            const viewport = document.getElementById('viewport');
+
+            viewport.addEventListener('mousedown', (e) => {
+                // Pan with middle mouse, space bar, or when pan tool is active
+                if (e.button === 1 || isPanToolActive || e.target === viewport || e.target.id === 'canvasWorld' || e.target.id === 'stringCanvas') {
+                    isPanning = true;
+                    startPanX = e.clientX - panX;
+                    startPanY = e.clientY - panY;
+                    viewport.style.cursor = 'grabbing';
+                }
+            });
+
+            window.addEventListener('mousemove', (e) => {
+                if (isPanning) {
+                    panX = e.clientX - startPanX;
+                    panY = e.clientY - startPanY;
+                    updateTransform();
+                }
+            });
+
+            window.addEventListener('mouseup', () => {
+                if (isPanning) {
+                    isPanning = false;
+                    viewport.style.cursor = isPanToolActive ? 'grab' : 'default';
+                }
+            });
+
+            // Wheel Zooming towards center
+            viewport.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const delta = e.deltaY > 0 ? -0.08 : 0.08;
+                adjustZoom(delta);
+            }, { passive: false });
+        }
+
+        function adjustZoom(delta) {
+            zoomLevel = Math.max(0.3, Math.min(2.0, zoomLevel + delta));
+            document.getElementById('zoomText').textContent = `${Math.round(zoomLevel * 100)}%`;
+            updateTransform();
+        }
+
+        function togglePanTool() {
+            isPanToolActive = !isPanToolActive;
+            const btn = document.getElementById('panToolBtn');
+            const viewport = document.getElementById('viewport');
+            
+            if (isPanToolActive) {
+                btn.classList.add('bg-red-700', 'text-white');
+                btn.classList.remove('bg-slate-800', 'text-slate-300');
+                viewport.style.cursor = 'grab';
+            } else {
+                btn.classList.remove('bg-red-700', 'text-white');
+                btn.classList.add('bg-slate-800', 'text-slate-300');
+                viewport.style.cursor = 'default';
+            }
+        }
+
+        // Automatic Smart Recenter
+        function recenterBoard() {
+            const activeIdeas = store.ideas.filter(i => i.boardId === store.activeBoardId);
+            
+            if (activeIdeas.length === 0) {
+                // Center default 3000x2000
+                panX = (window.innerWidth / 2) - 3000 * zoomLevel;
+                panY = (window.innerHeight / 2) - 2000 * zoomLevel;
+            } else {
+                // Calculate bounding box of all items
+                let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+                activeIdeas.forEach(idea => {
+                    if (idea.x < minX) minX = idea.x;
+                    if (idea.x > maxX) maxX = idea.x;
+                    if (idea.y < minY) minY = idea.y;
+                    if (idea.y > maxY) maxY = idea.y;
+                });
+
+                const centerX = (minX + maxX) / 2;
+                const centerY = (minY + maxY) / 2;
+
+                panX = (window.innerWidth / 2) - (centerX * zoomLevel);
+                panY = (window.innerHeight / 2) - (centerY * zoomLevel);
+            }
+
+            updateTransform();
+        }
+
+        // Sidebar Navigation
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('-translate-x-full');
+        }
+
+        function switchTab(tab) {
+            ['boards', 'add', 'style', 'threads'].forEach(t => {
+                document.getElementById(`panel-${t}`).classList.add('hidden');
+                document.getElementById(`tab-${t}`).classList.remove('border-red-600', 'text-red-500');
+                document.getElementById(`tab-${t}`).classList.add('border-transparent');
+            });
+            document.getElementById(`panel-${tab}`).classList.remove('hidden');
+            document.getElementById(`tab-${tab}`).classList.add('border-red-600', 'text-red-500');
+        }
+
+        // Boards Management
+        function renderSidebarBoards() {
+            const list = document.getElementById('boardsList');
+            list.innerHTML = '';
+
+            store.boards.forEach(b => {
+                const isActive = b.id === store.activeBoardId;
+                const item = document.createElement('div');
+                item.className = `p-3 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${isActive ? 'bg-red-950/60 border-red-700 text-white' : 'bg-slate-950 border-slate-800 hover:bg-slate-800 text-slate-300'}`;
+                item.onclick = () => switchBoard(b.id);
+                
+                item.innerHTML = `
+                    <div class="flex items-center space-x-2 truncate">
+                        <i class="fa-solid fa-chalkboard ${isActive ? 'text-red-500' : 'text-slate-500'}"></i>
+                        <span class="font-bold text-xs truncate">${escapeHtml(b.name)}</span>
+                    </div>
+                    ${store.boards.length > 1 ? `<button onclick="event.stopPropagation(); deleteBoard('${b.id}')" class="text-slate-500 hover:text-red-400 p-1"><i class="fa-solid fa-trash"></i></button>` : ''}
+                `;
+                list.appendChild(item);
+            });
+
+            const current = store.boards.find(b => b.id === store.activeBoardId);
+            if (current) {
+                document.getElementById('headerBoardTitle').textContent = current.name;
+            }
+        }
+
+        function switchBoard(boardId) {
+            store.activeBoardId = boardId;
+            saveStorage();
+            renderSidebarBoards();
+            renderBoard();
+            recenterBoard();
+        }
+
+        function openBoardModal() {
+            document.getElementById('boardNameInput').value = '';
+            document.getElementById('boardModal').classList.remove('hidden');
+        }
+
+        function closeBoardModal() {
+            document.getElementById('boardModal').classList.add('hidden');
+        }
+
+        function saveBoard() {
+            const name = document.getElementById('boardNameInput').value.trim();
+            if (!name) return;
+
+            const newId = 'board-' + Date.now();
+            store.boards.push({ id: newId, name, bgStyle: 'bg-cork' });
+            store.activeBoardId = newId;
+
+            saveStorage();
+            closeBoardModal();
+            renderSidebarBoards();
+            renderBoard();
+            recenterBoard();
+        }
+
+        function deleteBoard(id) {
+            if (confirm('¿Eliminar esta pizarra y sus elementos?')) {
+                store.boards = store.boards.filter(b => b.id !== id);
+                store.ideas = store.ideas.filter(i => i.boardId !== id);
+                store.connections = store.connections.filter(c => c.boardId !== id);
+                
+                if (store.activeBoardId === id) store.activeBoardId = store.boards[0].id;
+
+                saveStorage();
+                renderSidebarBoards();
+                renderBoard();
+            }
+        }
+
+        // Custom Backgrounds
+        function setBoardBg(bgClass) {
+            const currentBoard = store.boards.find(b => b.id === store.activeBoardId);
+            if (currentBoard) {
+                currentBoard.bgStyle = bgClass;
+                delete currentBoard.customBgUrl;
+                saveStorage();
+                applyBoardBg();
+            }
+        }
+
+        function uploadCustomBg(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (evt) => {
+                    const currentBoard = store.boards.find(b => b.id === store.activeBoardId);
+                    if (currentBoard) {
+                        currentBoard.bgStyle = 'bg-custom-user';
+                        currentBoard.customBgUrl = evt.target.result;
+                        saveStorage();
+                        applyBoardBg();
+                    }
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function setCustomBgUrl() {
+            const url = document.getElementById('bgUrlInput').value.trim();
+            if (url) {
+                const currentBoard = store.boards.find(b => b.id === store.activeBoardId);
+                if (currentBoard) {
+                    currentBoard.bgStyle = 'bg-custom-user';
+                    currentBoard.customBgUrl = url;
+                    saveStorage();
+                    applyBoardBg();
+                }
+            }
+        }
+
+        function applyBoardBg() {
+            const world = document.getElementById('canvasWorld');
+            const currentBoard = store.boards.find(b => b.id === store.activeBoardId);
+            
+            world.className = 'absolute';
+            world.style.backgroundImage = '';
+
+            if (currentBoard && currentBoard.bgStyle) {
+                if (currentBoard.bgStyle === 'bg-custom-user' && currentBoard.customBgUrl) {
+                    world.classList.add('bg-custom-user');
+                    world.style.backgroundImage = `url('${currentBoard.customBgUrl}')`;
+                } else {
+                    world.classList.add(currentBoard.bgStyle);
+                }
+            } else {
+                world.classList.add('bg-cork');
+            }
+        }
+
+        // Canvas Setup & Connections
+        let canvas, ctx;
+        function initCanvas() {
+            canvas = document.getElementById('stringCanvas');
+            ctx = canvas.getContext('2d');
+            canvas.width = 6000;
+            canvas.height = 4000;
+        }
+
+        function drawConnections() {
+            if (!ctx) return;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            document.getElementById('labelsContainer').innerHTML = '';
+
+            const currentConnections = store.connections.filter(c => c.boardId === store.activeBoardId);
+
+            currentConnections.forEach(conn => {
+                const fromEl = document.getElementById(`pin-${conn.fromId}`);
+                const toEl = document.getElementById(`pin-${conn.toId}`);
+
+                if (fromEl && toEl) {
+                    const fromIdea = store.ideas.find(i => i.id === conn.fromId);
+                    const toIdea = store.ideas.find(i => i.id === conn.toId);
+
+                    if (fromIdea && toIdea) {
+                        const x1 = fromIdea.x + 100;
+                        const y1 = fromIdea.y + 5;
+                        const x2 = toIdea.x + 100;
+                        const y2 = toIdea.y + 5;
+
+                        // String Curve
+                        const midX = (x1 + x2) / 2;
+                        const midY = (y1 + y2) / 2 + 15;
+
+                        ctx.beginPath();
+                        ctx.moveTo(x1, y1);
+                        ctx.quadraticCurveTo(midX, midY, x2, y2);
+                        ctx.strokeStyle = conn.color || '#dc2626';
+                        ctx.lineWidth = 3;
+                        ctx.stroke();
+
+                        // Label
+                        if (conn.label) {
+                            const lbl = document.createElement('div');
+                            lbl.className = 'absolute bg-slate-900/90 text-white border border-slate-700 text-[10px] font-bold px-2 py-0.5 rounded shadow pointer-events-auto transform -translate-x-1/2 -translate-y-1/2 cursor-pointer hover:bg-red-900';
+                            lbl.style.left = `${midX}px`;
+                            lbl.style.top = `${midY}px`;
+                            lbl.textContent = conn.label;
+                            lbl.onclick = () => removeConnection(conn.id);
+                            document.getElementById('labelsContainer').appendChild(lbl);
+                        }
+                    }
+                }
+            });
+        }
+
+        function removeConnection(connId) {
+            store.connections = store.connections.filter(c => c.id !== connId);
+            saveStorage();
+            drawConnections();
+        }
+
+        // Board Render
+        function renderBoard() {
+            applyBoardBg();
+            const container = document.getElementById('notesContainer');
+            container.innerHTML = '';
+
+            const activeIdeas = store.ideas.filter(i => i.boardId === store.activeBoardId);
+
+            activeIdeas.forEach(idea => {
+                const card = document.createElement('div');
+                card.id = `card-${idea.id}`;
+                card.className = `note-card p-3.5 rounded-sm ${idea.style} ${connectSourceId === idea.id ? 'connecting' : ''}`;
+                card.style.left = `${idea.x}px`;
+                card.style.top = `${idea.y}px`;
+                card.style.transform = `rotate(${idea.rotation || 0}deg)`;
+                card.style.width = idea.type === 'video' ? '280px' : (idea.style === 'note-photo' ? '210px' : '230px');
+
+                let contentHtml = '';
+
+                if (idea.type === 'photo' && idea.image) {
+                    contentHtml += `<div class="mb-2 overflow-hidden rounded bg-slate-100 border"><img src="${escapeHtml(idea.image)}" class="w-full h-36 object-cover" onerror="this.style.display='none'"></div>`;
+                } else if (idea.type === 'video') {
+                    if (idea.youtubeUrl) {
+                        const ytId = getYouTubeId(idea.youtubeUrl);
+                        if (ytId) contentHtml += `<div class="mb-2 rounded overflow-hidden aspect-video bg-black"><iframe class="w-full h-full" src="https://www.youtube.com/embed/${ytId}" frameborder="0" allowfullscreen></iframe></div>`;
+                    } else if (idea.videoBase64) {
+                        contentHtml += `<div class="mb-2 rounded overflow-hidden bg-black"><video src="${idea.videoBase64}" controls class="w-full h-36 object-cover"></video></div>`;
+                    }
+                } else if (idea.type === 'file') {
+                    contentHtml += `
+                        <div class="mb-2 p-2.5 bg-slate-800 text-slate-100 rounded-lg flex items-center justify-between border border-slate-700">
+                            <div class="flex items-center space-x-2 truncate">
+                                <i class="fa-solid fa-file-lines text-red-400 text-base"></i>
+                                <span class="font-bold text-xs truncate">${escapeHtml(idea.fileName || 'Archivo')}</span>
+                            </div>
+                            ${idea.fileBase64 ? `<a href="${idea.fileBase64}" download="${escapeHtml(idea.fileName || 'archivo')}" class="p-1 hover:bg-slate-700 text-sky-400 rounded"><i class="fa-solid fa-download"></i></a>` : ''}
+                        </div>
+                    `;
+                } else if (idea.type === 'board-link') {
+                    const targetBoard = store.boards.find(b => b.id === idea.targetBoardId);
+                    contentHtml += `
+                        <div class="my-2 p-2 bg-slate-900/80 border border-sky-400/50 rounded-lg text-center">
+                            <p class="text-xs text-sky-300 font-bold mb-1"><i class="fa-solid fa-link"></i> Pizarra Vinculada</p>
+                            <button onclick="switchBoard('${idea.targetBoardId}')" class="w-full py-1 px-2 bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs rounded shadow">
+                                Ir a "${escapeHtml(targetBoard ? targetBoard.name : 'Pizarra')}"
+                            </button>
+                        </div>
+                    `;
+                }
+
+                card.innerHTML = `
+                    <div id="pin-${idea.id}" onclick="handlePinClick(event, '${idea.id}')" class="pushpin ${idea.pin}" title="Click para conectar hilo"></div>
+                    <h3 class="font-bold text-sm mb-1 ${idea.style === 'note-newspaper' ? 'font-typewriter border-b border-slate-400 pb-1' : ''}">${escapeHtml(idea.title)}</h3>
+                    ${contentHtml}
+                    ${idea.desc ? `<p class="text-xs ${idea.style === 'note-paper' ? 'font-typewriter' : 'font-handwriting'} leading-relaxed mb-2 break-words">${escapeHtml(idea.desc)}</p>` : ''}
+                    <div class="flex items-center justify-end space-x-2 pt-2 border-t border-black/10 text-slate-600 text-xs">
+                        <button onclick="editIdea('${idea.id}')" class="hover:text-black p-1"><i class="fa-solid fa-pen"></i></button>
+                        <button onclick="deleteIdea('${idea.id}')" class="hover:text-red-700 p-1"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                `;
+
+                card.addEventListener('mousedown', (e) => startCardDrag(e, idea));
+                container.appendChild(card);
+            });
+
+            setTimeout(drawConnections, 20);
+        }
+
+        // Dragging Card Logic
+        function startCardDrag(e, idea) {
+            if (e.target.closest('.pushpin') || e.target.closest('button') || e.target.closest('a') || e.target.closest('iframe') || e.target.closest('video') || isPanToolActive) return;
+
+            draggedIdea = idea;
+            const cardEl = document.getElementById(`card-${idea.id}`);
+
+            dragOffsetX = (e.clientX - (idea.x * zoomLevel + panX)) / zoomLevel;
+            dragOffsetY = (e.clientY - (idea.y * zoomLevel + panY)) / zoomLevel;
+
+            document.addEventListener('mousemove', onCardDrag);
+            document.addEventListener('mouseup', stopCardDrag);
+        }
+
+        function onCardDrag(e) {
+            if (!draggedIdea) return;
+
+            let newX = (e.clientX - panX) / zoomLevel - dragOffsetX;
+            let newY = (e.clientY - panY) / zoomLevel - dragOffsetY;
+
+            draggedIdea.x = Math.max(50, Math.min(newX, 5700));
+            draggedIdea.y = Math.max(50, Math.min(newY, 3700));
+
+            const cardEl = document.getElementById(`card-${draggedIdea.id}`);
+            if (cardEl) {
+                cardEl.style.left = `${draggedIdea.x}px`;
+                cardEl.style.top = `${draggedIdea.y}px`;
+            }
+
+            drawConnections();
+        }
+
+        function stopCardDrag() {
+            if (draggedIdea) {
+                saveStorage();
+                draggedIdea = null;
+            }
+            document.removeEventListener('mousemove', onCardDrag);
+            document.removeEventListener('mouseup', stopCardDrag);
+        }
+
+        // Thread Linking
+        function toggleConnectMode() {
+            isConnectMode = !isConnectMode;
+            connectSourceId = null;
+            
+            const btn = document.getElementById('connectBtn');
+            if (isConnectMode) {
+                btn.classList.add('bg-red-700', 'text-white');
+                btn.classList.remove('bg-slate-800');
+            } else {
+                btn.classList.remove('bg-red-700', 'text-white');
+                btn.classList.add('bg-slate-800');
+            }
+            renderBoard();
+        }
+
+        function handlePinClick(e, ideaId) {
+            e.stopPropagation();
+
+            if (!isConnectMode) {
+                toggleConnectMode();
+                connectSourceId = ideaId;
+                renderBoard();
+                return;
+            }
+
+            if (!connectSourceId) {
+                connectSourceId = ideaId;
+                renderBoard();
+            } else if (connectSourceId === ideaId) {
+                connectSourceId = null;
+                renderBoard();
+            } else {
+                const labelText = prompt("Etiqueta para la relación (Opcional):", "relacionado con");
+                const color = document.getElementById('sidebarThreadColor').value;
+
+                store.connections.push({
+                    id: 'conn-' + Date.now(),
+                    boardId: store.activeBoardId,
+                    fromId: connectSourceId,
+                    toId: ideaId,
+                    color: color,
+                    label: labelText !== null ? labelText : ''
+                });
+
+                connectSourceId = null;
+                saveStorage();
+                renderBoard();
+            }
+        }
+
+        // Modal Handlers & Quick Add
+        function quickAdd(type) {
+            openModal();
+            document.getElementById('ideaType').value = type;
+            toggleFormFields(type);
+        }
+
+        function toggleFormFields(type) {
+            document.getElementById('imageInputsGroup').classList.toggle('hidden', type !== 'photo');
+            document.getElementById('videoInputsGroup').classList.toggle('hidden', type !== 'video');
+            document.getElementById('fileInputsGroup').classList.toggle('hidden', type !== 'file');
+            document.getElementById('targetBoardGroup').classList.toggle('hidden', type !== 'board-link');
+
+            if (type === 'board-link') {
+                const select = document.getElementById('targetBoardId');
+                select.innerHTML = '';
+                store.boards.filter(b => b.id !== store.activeBoardId).forEach(b => {
+                    const opt = document.createElement('option');
+                    opt.value = b.id;
+                    opt.textContent = b.name;
+                    select.appendChild(opt);
+                });
+            }
+        }
+
+        function handleLocalImage(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (evt) => { tempMediaBase64 = evt.target.result; };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function handleLocalVideo(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (evt) => { tempMediaBase64 = evt.target.result; };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function handleLocalFile(e) {
+            const file = e.target.files[0];
+            if (file) {
+                tempFileName = file.name;
+                tempFileSize = file.size;
+                const reader = new FileReader();
+                reader.onload = (evt) => { tempMediaBase64 = evt.target.result; };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function openModal() {
+            tempMediaBase64 = null;
+            tempFileName = null;
+            document.getElementById('ideaId').value = '';
+            document.getElementById('ideaTitle').value = '';
+            document.getElementById('ideaDesc').value = '';
+            document.getElementById('ideaImage').value = '';
+            document.getElementById('youtubeUrl').value = '';
+            document.getElementById('ideaType').value = 'note';
+            toggleFormFields('note');
+            document.getElementById('ideaModal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('ideaModal').classList.add('hidden');
+        }
+
+        function saveIdea(e) {
+            e.preventDefault();
+            const id = document.getElementById('ideaId').value;
+            const type = document.getElementById('ideaType').value;
+            const title = document.getElementById('ideaTitle').value.trim();
+            const desc = document.getElementById('ideaDesc').value.trim();
+            const style = document.querySelector('input[name="style"]:checked').value;
+            const pin = document.querySelector('input[name="pin"]:checked').value;
+
+            // Compute center coords relative to view
+            const centerWorldX = (window.innerWidth / 2 - panX) / zoomLevel;
+            const centerWorldY = (window.innerHeight / 2 - panY) / zoomLevel;
+
+            if (id) {
+                const idea = store.ideas.find(i => i.id === id);
+                if (idea) {
+                    idea.title = title; idea.desc = desc; idea.style = style; idea.pin = pin; idea.type = type;
+                    if (type === 'photo') idea.image = tempMediaBase64 || document.getElementById('ideaImage').value.trim();
+                    if (type === 'video') {
+                        idea.youtubeUrl = document.getElementById('youtubeUrl').value.trim();
+                        if (tempMediaBase64) idea.videoBase64 = tempMediaBase64;
+                    }
+                    if (type === 'file' && tempMediaBase64) {
+                        idea.fileBase64 = tempMediaBase64; idea.fileName = tempFileName;
+                    }
+                    if (type === 'board-link') idea.targetBoardId = document.getElementById('targetBoardId').value;
+                }
+            } else {
+                const newIdea = {
+                    id: Date.now().toString(),
+                    boardId: store.activeBoardId,
+                    type, title, desc, style, pin,
+                    x: centerWorldX + (Math.random() * 100 - 50),
+                    y: centerWorldY + (Math.random() * 100 - 50),
+                    rotation: Math.floor(Math.random() * 8) - 4
+                };
+
+                if (type === 'photo') newIdea.image = tempMediaBase64 || document.getElementById('ideaImage').value.trim();
+                if (type === 'video') {
+                    newIdea.youtubeUrl = document.getElementById('youtubeUrl').value.trim();
+                    if (tempMediaBase64) newIdea.videoBase64 = tempMediaBase64;
+                }
+                if (type === 'file') {
+                    newIdea.fileBase64 = tempMediaBase64; newIdea.fileName = tempFileName;
+                }
+                if (type === 'board-link') newIdea.targetBoardId = document.getElementById('targetBoardId').value;
+
+                store.ideas.push(newIdea);
+            }
+
+            saveStorage();
+            closeModal();
+            renderBoard();
+        }
+
+        function editIdea(id) {
+            const idea = store.ideas.find(i => i.id === id);
+            if (!idea) return;
+
+            document.getElementById('ideaId').value = idea.id;
+            document.getElementById('ideaType').value = idea.type || 'note';
+            document.getElementById('ideaTitle').value = idea.title;
+            document.getElementById('ideaDesc').value = idea.desc || '';
+            document.getElementById('ideaImage').value = idea.image || '';
+            document.getElementById('youtubeUrl').value = idea.youtubeUrl || '';
+
+            toggleFormFields(idea.type || 'note');
+
+            const styleRadio = document.querySelector(`input[name="style"][value="${idea.style}"]`);
+            if (styleRadio) styleRadio.checked = true;
+
+            const pinRadio = document.querySelector(`input[name="pin"][value="${idea.pin}"]`);
+            if (pinRadio) pinRadio.checked = true;
+
+            document.getElementById('ideaModal').classList.remove('hidden');
+        }
+
+        function deleteIdea(id) {
+            store.ideas = store.ideas.filter(i => i.id !== id);
+            store.connections = store.connections.filter(c => c.fromId !== id && c.toId !== id);
+            saveStorage();
+            renderBoard();
+        }
+
+        // Export/Import
+        function exportData() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(store, null, 2));
+            const a = document.createElement('a');
+            a.setAttribute("href", dataStr);
+            a.setAttribute("download", `detective_boards_backup.json`);
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        }
+
+        function importData(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                try {
+                    const data = JSON.parse(evt.target.result);
+                    if (data.boards && data.ideas) {
+                        store = data;
+                        saveStorage();
+                        renderSidebarBoards();
+                        renderBoard();
+                        recenterBoard();
+                    }
+                } catch(err) { alert('Error al cargar archivo JSON.'); }
+            };
+            reader.readAsText(file);
+        }
+
+        // Helpers
+        function getYouTubeId(url) {
+            const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+            const match = url.match(regExp);
+            return (match && match[2].length === 11) ? match[2] : null;
+        }
+
+        function escapeHtml(str) {
+            return str ? str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;") : '';
+        }
+    </script>
+</body>
+</html>
